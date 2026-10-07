@@ -1,0 +1,461 @@
+/* =========================================================
+   HOSPITAL MANAGEMENT SYSTEM
+   COMPLETE POSTGRESQL DATABASE SCRIPT
+   ========================================================= */
+
+
+/* =========================================================
+   1. DROP OLD TABLES
+   ========================================================= */
+
+DROP TABLE IF EXISTS Bill CASCADE;
+DROP TABLE IF EXISTS Prescription CASCADE;
+DROP TABLE IF EXISTS Treatment CASCADE;
+DROP TABLE IF EXISTS Appointment CASCADE;
+DROP TABLE IF EXISTS Patient_Contact CASCADE;
+DROP TABLE IF EXISTS Ward CASCADE;
+DROP TABLE IF EXISTS Doctor CASCADE;
+DROP TABLE IF EXISTS Department CASCADE;
+DROP TABLE IF EXISTS Patient CASCADE;
+
+
+/* =========================================================
+   2. CREATE PATIENT TABLE
+   ========================================================= */
+
+CREATE TABLE Patient (
+    patient_id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    first_name VARCHAR(50) NOT NULL,
+    last_name VARCHAR(50) NOT NULL,
+    dob DATE NOT NULL,
+    blood_group VARCHAR(5) NOT NULL,
+    gender VARCHAR(15) NOT NULL,
+    address VARCHAR(255) NOT NULL
+);
+
+
+/* =========================================================
+   3. CREATE DEPARTMENT TABLE
+   ========================================================= */
+
+CREATE TABLE Department (
+    dept_id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    dept_name VARCHAR(100) NOT NULL UNIQUE,
+    hod_doctor_id INT,
+    floor_no INT NOT NULL
+);
+
+
+/* =========================================================
+   4. CREATE DOCTOR TABLE
+   ========================================================= */
+
+CREATE TABLE Doctor (
+    doctor_id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    first_name VARCHAR(50) NOT NULL,
+    last_name VARCHAR(50) NOT NULL,
+    specialization VARCHAR(100) NOT NULL,
+    experience_years INT NOT NULL CHECK (experience_years >= 0),
+    email VARCHAR(120) UNIQUE,
+    dept_id INT,
+
+    CONSTRAINT fk_doctor_department
+        FOREIGN KEY (dept_id)
+        REFERENCES Department(dept_id)
+);
+
+
+/* =========================================================
+   5. ADD HOD FOREIGN KEY
+   ========================================================= */
+
+ALTER TABLE Department
+ADD CONSTRAINT fk_department_hod
+FOREIGN KEY (hod_doctor_id)
+REFERENCES Doctor(doctor_id);
+
+
+/* =========================================================
+   6. CREATE PATIENT CONTACT TABLE
+   ========================================================= */
+
+CREATE TABLE Patient_Contact (
+    contact_id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    patient_id INT NOT NULL,
+    contact_number VARCHAR(15) NOT NULL UNIQUE,
+    contact_type VARCHAR(20) NOT NULL,
+
+    CONSTRAINT fk_contact_patient
+        FOREIGN KEY (patient_id)
+        REFERENCES Patient(patient_id)
+        ON DELETE CASCADE
+);
+
+
+/* =========================================================
+   7. CREATE WARD TABLE
+   ========================================================= */
+
+CREATE TABLE Ward (
+    ward_id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    ward_name VARCHAR(100) NOT NULL UNIQUE,
+    capacity INT NOT NULL CHECK (capacity > 0),
+    dept_id INT NOT NULL,
+
+    CONSTRAINT fk_ward_department
+        FOREIGN KEY (dept_id)
+        REFERENCES Department(dept_id)
+);
+
+
+/* =========================================================
+   8. CREATE APPOINTMENT TABLE
+   ========================================================= */
+
+CREATE TABLE Appointment (
+    appointment_id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    patient_id INT NOT NULL,
+    doctor_id INT NOT NULL,
+    appointment_date DATE NOT NULL,
+    appointment_time TIME NOT NULL,
+    status VARCHAR(20) NOT NULL,
+
+    CONSTRAINT fk_appointment_patient
+        FOREIGN KEY (patient_id)
+        REFERENCES Patient(patient_id),
+
+    CONSTRAINT fk_appointment_doctor
+        FOREIGN KEY (doctor_id)
+        REFERENCES Doctor(doctor_id)
+);
+
+
+/* =========================================================
+   9. CREATE TREATMENT TABLE
+   ========================================================= */
+
+CREATE TABLE Treatment (
+    treatment_id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    appt_id INT NOT NULL UNIQUE,
+    diagnosis VARCHAR(255) NOT NULL,
+    treatment_date DATE NOT NULL,
+    ward_id INT,
+
+    CONSTRAINT fk_treatment_appointment
+        FOREIGN KEY (appt_id)
+        REFERENCES Appointment(appointment_id),
+
+    CONSTRAINT fk_treatment_ward
+        FOREIGN KEY (ward_id)
+        REFERENCES Ward(ward_id)
+);
+
+
+/* =========================================================
+   10. CREATE PRESCRIPTION TABLE
+   ========================================================= */
+
+CREATE TABLE Prescription (
+    prescription_id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    treatment_id INT NOT NULL,
+    medicine_name VARCHAR(120) NOT NULL,
+    dosage VARCHAR(60) NOT NULL,
+    frequency VARCHAR(50) NOT NULL,
+    duration INT NOT NULL CHECK (duration > 0),
+
+    CONSTRAINT fk_prescription_treatment
+        FOREIGN KEY (treatment_id)
+        REFERENCES Treatment(treatment_id)
+        ON DELETE CASCADE
+);
+
+
+/* =========================================================
+   11. CREATE BILL TABLE
+   ========================================================= */
+
+CREATE TABLE Bill (
+    bill_id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    patient_id INT NOT NULL,
+    treatment_id INT NOT NULL UNIQUE,
+    consultation_fee DECIMAL(10,2) NOT NULL CHECK (consultation_fee >= 0),
+    medicine_charges DECIMAL(10,2) NOT NULL CHECK (medicine_charges >= 0),
+    bed_charges DECIMAL(10,2) NOT NULL CHECK (bed_charges >= 0),
+    payment_status VARCHAR(20) NOT NULL,
+    bill_date DATE NOT NULL,
+
+    CONSTRAINT fk_bill_patient
+        FOREIGN KEY (patient_id)
+        REFERENCES Patient(patient_id),
+
+    CONSTRAINT fk_bill_treatment
+        FOREIGN KEY (treatment_id)
+        REFERENCES Treatment(treatment_id)
+);
+
+
+/* =========================================================
+   12. INSERT DEPARTMENTS
+   ========================================================= */
+
+INSERT INTO Department
+(dept_name, hod_doctor_id, floor_no)
+VALUES
+('Cardiology', NULL, 1),
+('Neurology', NULL, 2),
+('Orthopedics', NULL, 3),
+('Pediatrics', NULL, 4),
+('General Medicine', NULL, 5);
+
+
+/* =========================================================
+   13. INSERT DOCTORS
+   ========================================================= */
+
+INSERT INTO Doctor
+(first_name, last_name, specialization, experience_years, email, dept_id)
+VALUES
+('Rajesh', 'Kumar', 'Cardiology', 12,
+ 'rajesh.kumar@hospital.com', 1),
+
+('Priya', 'Sharma', 'Neurology', 8,
+ 'priya.sharma@hospital.com', 2),
+
+('Arun', 'Reddy', 'Orthopedics', 10,
+ 'arun.reddy@hospital.com', 3),
+
+('Meena', 'Patel', 'Pediatrics', 7,
+ 'meena.patel@hospital.com', 4),
+
+('Kiran', 'Nair', 'General Medicine', 15,
+ 'kiran.nair@hospital.com', 5),
+
+('Suresh', 'Rao', 'Cardiology', 6,
+ 'suresh.rao@hospital.com', 1),
+
+('Divya', 'Menon', 'Neurology', 9,
+ 'divya.menon@hospital.com', 2),
+
+('Vijay', 'Singh', 'Orthopedics', 11,
+ 'vijay.singh@hospital.com', 3),
+
+('Anita', 'Verma', 'Pediatrics', 5,
+ 'anita.verma@hospital.com', 4),
+
+('Rohan', 'Das', 'General Medicine', 4,
+ 'rohan.das@hospital.com', 5);
+
+
+/* =========================================================
+   14. UPDATE HODs
+   ========================================================= */
+
+UPDATE Department
+SET hod_doctor_id = 1
+WHERE dept_id = 1;
+
+UPDATE Department
+SET hod_doctor_id = 2
+WHERE dept_id = 2;
+
+UPDATE Department
+SET hod_doctor_id = 3
+WHERE dept_id = 3;
+
+UPDATE Department
+SET hod_doctor_id = 4
+WHERE dept_id = 4;
+
+UPDATE Department
+SET hod_doctor_id = 5
+WHERE dept_id = 5;
+
+
+/* =========================================================
+   15. INSERT PATIENTS
+   ========================================================= */
+
+INSERT INTO Patient
+(first_name, last_name, dob, blood_group, gender, address)
+VALUES
+('Anjali', 'Sharma', '1988-02-14', 'AB+', 'Female', 'Bangalore'),
+
+('Rahul', 'Kumar', '1995-06-20', 'O+', 'Male', 'Hyderabad'),
+
+('Sneha', 'Reddy', '2000-09-12', 'A+', 'Female', 'Chennai'),
+
+('Vikram', 'Singh', '1972-04-08', 'B+', 'Male', 'Mumbai'),
+
+('Pooja', 'Patel', '1990-12-25', 'O-', 'Female', 'Pune'),
+
+('Arjun', 'Mehta', '1985-07-18', 'A-', 'Male', 'Delhi'),
+
+('Kavya', 'Nair', '1998-03-30', 'B-', 'Female', 'Kochi'),
+
+('Ravi', 'Verma', '1978-11-05', 'O+', 'Male', 'Hyderabad'),
+
+('Neha', 'Gupta', '1993-01-22', 'A+', 'Female', 'Jaipur'),
+
+('Amit', 'Joshi', '1982-08-16', 'AB+', 'Male', 'Pune');
+
+
+/* =========================================================
+   16. INSERT PATIENT CONTACTS
+   ========================================================= */
+
+INSERT INTO Patient_Contact
+(patient_id, contact_number, contact_type)
+VALUES
+(1, '9876500001', 'Mobile'),
+(2, '9876500002', 'Mobile'),
+(3, '9876500003', 'Mobile'),
+(4, '9876500004', 'Mobile'),
+(5, '9876500005', 'Mobile'),
+(6, '9876500006', 'Mobile'),
+(7, '9876500007', 'Mobile'),
+(8, '9876500008', 'Mobile'),
+(9, '9876500009', 'Mobile'),
+(10, '9876500010', 'Mobile'),
+(1, '0404000001', 'Home'),
+(2, '0404000002', 'Home');
+
+
+/* =========================================================
+   17. INSERT WARDS
+   ========================================================= */
+
+INSERT INTO Ward
+(ward_name, capacity, dept_id)
+VALUES
+('Cardiology Ward', 30, 1),
+('Neurology Ward', 25, 2),
+('Orthopedic Ward', 20, 3),
+('Pediatric Ward', 25, 4),
+('General Ward', 40, 5);
+
+
+/* =========================================================
+   18. INSERT APPOINTMENTS
+   ========================================================= */
+
+INSERT INTO Appointment
+(patient_id, doctor_id, appointment_date, appointment_time, status)
+VALUES
+(1, 1, '2026-09-01', '09:30:00', 'Completed'),
+(2, 2, '2026-09-02', '10:00:00', 'Completed'),
+(3, 3, '2026-09-03', '11:00:00', 'Completed'),
+(4, 4, '2026-09-04', '09:00:00', 'Completed'),
+(5, 5, '2026-09-05', '10:30:00', 'Completed'),
+(6, 6, '2026-09-06', '11:30:00', 'Completed'),
+(7, 7, '2026-09-07', '12:00:00', 'Completed'),
+(8, 8, '2026-09-08', '14:00:00', 'Completed'),
+(9, 9, '2026-09-09', '15:00:00', 'Completed'),
+(10, 10, '2026-09-10', '16:00:00', 'Completed');
+
+
+/* =========================================================
+   19. INSERT TREATMENTS
+   ========================================================= */
+
+INSERT INTO Treatment
+(appt_id, diagnosis, treatment_date, ward_id)
+VALUES
+(1, 'Hypertension and chest discomfort', '2026-09-01', 1),
+(2, 'Migraine and headache', '2026-09-02', 2),
+(3, 'Knee joint pain', '2026-09-03', 3),
+(4, 'Seasonal fever', '2026-09-04', 4),
+(5, 'Viral infection', '2026-09-05', 5),
+(6, 'Heart rhythm abnormality', '2026-09-06', 1),
+(7, 'Neurological weakness', '2026-09-07', 2),
+(8, 'Fracture recovery', '2026-09-08', 3),
+(9, 'Childhood respiratory infection', '2026-09-09', 4),
+(10, 'Diabetes management', '2026-09-10', 5);
+
+
+/* =========================================================
+   20. INSERT PRESCRIPTIONS
+   ========================================================= */
+
+INSERT INTO Prescription
+(treatment_id, medicine_name, dosage, frequency, duration)
+VALUES
+(1, 'Amlodipine', '5 mg', 'Once daily', 30),
+(2, 'Sumatriptan', '50 mg', 'When required', 10),
+(3, 'Paracetamol', '500 mg', 'Twice daily', 7),
+(4, 'Cetirizine', '10 mg', 'Once daily', 5),
+(5, 'Azithromycin', '500 mg', 'Once daily', 5),
+(6, 'Metoprolol', '25 mg', 'Twice daily', 30),
+(7, 'Gabapentin', '300 mg', 'Once daily', 14),
+(8, 'Calcium', '500 mg', 'Once daily', 30),
+(9, 'Amoxicillin', '500 mg', 'Three times daily', 7),
+(10, 'Metformin', '500 mg', 'Twice daily', 30);
+
+
+/* =========================================================
+   21. INSERT BILLS
+   ========================================================= */
+
+INSERT INTO Bill
+(patient_id, treatment_id, consultation_fee,
+ medicine_charges, bed_charges, payment_status, bill_date)
+VALUES
+(1, 1, 800.00, 1200.00, 2500.00, 'Paid', '2026-09-01'),
+
+(2, 2, 700.00, 900.00, 1800.00, 'Paid', '2026-09-02'),
+
+(3, 3, 600.00, 750.00, 1500.00, 'Pending', '2026-09-03'),
+
+(4, 4, 500.00, 500.00, 1000.00, 'Paid', '2026-09-04'),
+
+(5, 5, 500.00, 650.00, 1200.00, 'Pending', '2026-09-05'),
+
+(6, 6, 900.00, 1100.00, 2200.00, 'Paid', '2026-09-06'),
+
+(7, 7, 750.00, 1000.00, 2000.00, 'Paid', '2026-09-07'),
+
+(8, 8, 650.00, 850.00, 1600.00, 'Pending', '2026-09-08'),
+
+(9, 9, 500.00, 600.00, 1200.00, 'Paid', '2026-09-09'),
+
+(10, 10, 550.00, 700.00, 1400.00, 'Pending', '2026-09-10');
+
+
+/* =========================================================
+   22. VERIFY ALL TABLES
+   ========================================================= */
+
+SELECT * FROM Patient;
+
+SELECT * FROM Patient_Contact;
+
+SELECT * FROM Department;
+
+SELECT * FROM Doctor;
+
+SELECT * FROM Ward;
+
+SELECT * FROM Appointment;
+
+SELECT * FROM Treatment;
+
+SELECT * FROM Prescription;
+
+SELECT * FROM Bill;
+
+
+/* =========================================================
+   23. CRUD - CREATE
+   ========================================================= */
+
+INSERT INTO Patient
+(first_name, last_name, dob, blood_group, gender, address)
+VALUES
+('Test', 'Patient', '2001-01-01', 'O+', 'Male', 'Hyderabad');
+
+
+/* =========================================================
+   24. CRUD - READ
+   ========================================================= */
+
+SELECT *
+FROM Patient;
